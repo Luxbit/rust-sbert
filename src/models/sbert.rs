@@ -21,6 +21,7 @@ use tch::{nn, Device, Tensor};
 use crate::models::pad_sort;
 use crate::modules::{
     self, manifest, transformer as transformer_mod, Features, Module, TransformerBackend,
+    TransformerSource,
 };
 use crate::tokenizers::Tokenizer;
 use crate::{att, Attentions, Embeddings, Error};
@@ -54,9 +55,79 @@ where
     where
         P: Into<PathBuf>,
     {
+        Self::new_with_source(root, device, TransformerSource::TorchScript)
+    }
+
+    /// Load with the ONNX transformer backend (requires the `onnx` cargo
+    /// feature). The graph is resolved as `<transformer_dir>/model.onnx`;
+    /// see [`Self::new_onnx_with_file`] for an explicit path.
+    ///
+    /// `device` selects the ONNX Runtime execution provider only — all
+    /// tch-side tensors stay on CPU (device split, see
+    /// [`Self::new_with_source`]). Requires an onnxruntime library at
+    /// runtime (`ORT_DYLIB_PATH`).
+    #[cfg(feature = "onnx")]
+    pub fn new_onnx<P>(root: P, device: Option<Device>) -> Result<Self, Error>
+    where
+        P: Into<PathBuf>,
+    {
+        Self::new_with_source(root, device, TransformerSource::Onnx(None))
+    }
+
+    /// Like [`Self::new_onnx`], with an explicit `.onnx` graph path.
+    #[cfg(feature = "onnx")]
+    pub fn new_onnx_with_file<P, F>(
+        root: P,
+        onnx_file: F,
+        device: Option<Device>,
+    ) -> Result<Self, Error>
+    where
+        P: Into<PathBuf>,
+        F: Into<PathBuf>,
+    {
+        Self::new_with_source(
+            root,
+            device,
+            TransformerSource::Onnx(Some(onnx_file.into())),
+        )
+    }
+
+    /// Load a sentence-transformers checkpoint with an explicit transformer
+    /// source — the body behind [`Self::new`] and `new_onnx`.
+    ///
+    /// **Device split (ONNX):** the user's `Device` selects *only* the ORT
+    /// execution provider via `ONNXEnvironmentConfig::from_device`; every
+    /// tch-side tensor (tokenizer output, Pooling/Dense/Normalize) stays on
+    /// CPU. This keeps the ONNX path usable with a CPU-only libtorch build
+    /// and keeps CUDA tensors out of the ndarray marshalling. MPS requested
+    /// with ONNX falls back to the CPU EP with a warning — use the default
+    /// (TorchScript) backend for MPS.
+    pub fn new_with_source<P>(
+        root: P,
+        device: Option<Device>,
+        source: TransformerSource,
+    ) -> Result<Self, Error>
+    where
+        P: Into<PathBuf>,
+    {
         let root = root.into();
         let device = device.unwrap_or_else(Device::cuda_if_available);
         log::info!("Using device {:?}", device);
+
+        let tch_device = match &source {
+            TransformerSource::TorchScript => device,
+            #[cfg(feature = "onnx")]
+            TransformerSource::Onnx(_) => {
+                if matches!(device, Device::Mps) {
+                    log::warn!(
+                        "Device::Mps with the ONNX backend: ORT has no Metal provider, \
+                         falling back to the CPU execution provider. Use the default \
+                         (TorchScript) backend for MPS."
+                    );
+                }
+                Device::Cpu
+            }
+        };
 
         let entries = manifest::parse(&root)?;
 
@@ -91,7 +162,7 @@ where
                     post.push(Box::new(modules::Pooling::new(&module_dir)?));
                 }
                 "dense" => {
-                    post.push(Box::new(modules::Dense::new(&module_dir, device)?));
+                    post.push(Box::new(modules::Dense::new(&module_dir, tch_device)?));
                 }
                 "normalize" => {
                     post.push(Box::new(modules::Normalize::new()));
@@ -114,8 +185,8 @@ where
             Error::Encoding("internal: transformer_dir not set")
         })?;
 
-        let mut vs = nn::VarStore::new(device);
-        let transformer = transformer_mod::load(&transformer_dir, &vs.root(), device)?;
+        let mut vs = nn::VarStore::new(tch_device);
+        let loaded = transformer_mod::load(&transformer_dir, &vs.root(), device, source)?;
 
         // Tokenizer settings are resolved from the checkpoint's config files
         // (see `resolve_tokenizer_settings` for the precedence rules).
@@ -132,16 +203,20 @@ where
             settings.max_seq_length,
         )?);
 
-        // Load the transformer weights AFTER the VarStore paths have been
-        // wired up by the backend constructor.
-        let weights_file = transformer_dir.join("model.ot");
-        vs.load(weights_file)?;
+        // Load the TorchScript weights AFTER the VarStore paths have been
+        // wired up by the backend constructor. ONNX backends carry their
+        // weights inside the graph — nothing to load here.
+        if let Some(weights_file) = &loaded.torchscript_weights {
+            vs.load(weights_file)?;
+        }
 
         Ok(SentenceTransformer {
-            transformer,
+            transformer: loaded.backend,
             post,
             tokenizer,
-            device,
+            // tch-side placement: the user device for TorchScript, CPU for
+            // ONNX (device split — see new_with_source docs).
+            device: tch_device,
         })
     }
 

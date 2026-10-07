@@ -18,8 +18,11 @@ pub use dense::Dense;
 pub use manifest::{parse as parse_manifest, resolve_module_dir, ModuleEntry};
 pub use normalize::Normalize;
 pub use pooling::Pooling;
+#[cfg(feature = "onnx")]
+pub use transformer::OnnxBackend;
 pub use transformer::{
-    BertBackend, DistilBertBackend, TransformerBackend, TransformerOutput,
+    BertBackend, DistilBertBackend, LoadedTransformer, TransformerBackend, TransformerOutput,
+    TransformerSource,
 };
 
 use tch::Tensor;
