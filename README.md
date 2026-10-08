@@ -35,11 +35,14 @@ Supports both [rust-tokenizers][] and Hugging Face's [tokenizers][].
   dependency enables `download-libtorch`). Or point `LIBTORCH` at a local
   extraction, as usual for tch crates.
 - `onnx`: an **onnxruntime** shared library (>= 1.17) at runtime, located
-  via `ORT_DYLIB_PATH` — the manual setup documented by the rust-bert fork:
+  via `ORT_DYLIB_PATH` — the manual setup documented by the rust-bert fork.
+  On Linux use **>= 1.23**: in 1.20–1.22, releasing the ORT environment at
+  process exit (which `ort` 2.0.0-rc.13 does from a `.fini_array` handler)
+  segfaults after your program has already finished.
 
   1. Download a release for your platform from the
      [onnxruntime releases](https://github.com/microsoft/onnxruntime/releases)
-     (e.g. `onnxruntime-osx-arm64-1.20.1.tgz`).
+     (e.g. `onnxruntime-osx-arm64-1.23.2.tgz`).
   2. Extract it and point `ORT_DYLIB_PATH` at the library:
 
      ```bash

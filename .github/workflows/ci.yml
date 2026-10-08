@@ -160,11 +160,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      # >= 1.23, not 1.20-1.22: ort 2.0.0-rc.13 releases the ORT environment
+      # from a .fini_array handler at process exit, and onnxruntime 1.20-1.22
+      # segfaults inside its own teardown at that point (fixed in 1.23) —
+      # every onnx-leg binary would exit 139 after succeeding.
       - name: Manual onnxruntime setup
         run: |
-          curl -sSL https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-1.20.1.tgz \
+          curl -sSL https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz \
             | tar -xz -C /opt
-          mv /opt/onnxruntime-linux-x64-1.20.1 /opt/onnxruntime
+          mv /opt/onnxruntime-linux-x64-1.23.2 /opt/onnxruntime
           ls -la /opt/onnxruntime/lib
       - name: Install python deps
         run: |
@@ -205,11 +209,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      # Same >= 1.23 pin as integration-onnx (1.20-1.22 segfault at exit).
       - name: Manual onnxruntime setup
         run: |
-          curl -sSL https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-1.20.1.tgz \
+          curl -sSL https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz \
             | tar -xz -C /opt
-          mv /opt/onnxruntime-linux-x64-1.20.1 /opt/onnxruntime
+          mv /opt/onnxruntime-linux-x64-1.23.2 /opt/onnxruntime
           ls -la /opt/onnxruntime/lib
       - name: Install python deps
         run: |
