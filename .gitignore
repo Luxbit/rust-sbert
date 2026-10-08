@@ -1,8 +1,9 @@
 target/
-./models/
+/models/
 logs/
 notebooks/
 .ipynb_checkpoints/
 
 .profile
-
+.DS_Store
+utils/__pycache__

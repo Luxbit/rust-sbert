@@ -7,7 +7,9 @@ use rayon::prelude::*;
 use rust_bert::bert::BertConfig;
 use rust_bert::roberta::RobertaForSequenceClassification;
 use rust_bert::Config;
-use tch::{nn, Device, Tensor};
+use tch::{nn, Tensor};
+
+use crate::Device;
 
 use crate::models::pad_sort;
 use crate::tokenizers::Tokenizer;
@@ -16,7 +18,7 @@ use crate::{Embeddings, Error};
 pub struct DistilRobertaForSequenceClassification<T> {
     lm_model: RobertaForSequenceClassification,
     tokenizer: Arc<T>,
-    device: Device,
+    device: tch::Device,
 }
 
 impl<T> DistilRobertaForSequenceClassification<T>
@@ -36,7 +38,7 @@ where
 
         let config = BertConfig::from_file(&config_file);
 
-        let device = device.unwrap_or(Device::cuda_if_available());
+        let device: tch::Device = device.unwrap_or_else(Device::cuda_if_available).into();
         log::info!("Using device {:?}", device);
 
         let mut vs = nn::VarStore::new(device);
@@ -93,8 +95,18 @@ where
 
                 let (tokenized_input, attention) = tokenizer.tokenize(&sorted_pad_input[range]);
 
-                let batch_tensor = Tensor::stack(&tokenized_input, 0).to(device);
-                let batch_attention = Tensor::stack(&attention, 0).to(device);
+                let stack = |rows: &[Vec<i64>]| {
+                    Tensor::stack(
+                        &rows
+                            .iter()
+                            .map(|r| Tensor::from_slice(r))
+                            .collect::<Vec<_>>(),
+                        0,
+                    )
+                    .to(device)
+                };
+                let batch_tensor = stack(&tokenized_input);
+                let batch_attention = stack(&attention);
 
                 (batch_tensor, batch_attention)
             })
