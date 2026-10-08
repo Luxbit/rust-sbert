@@ -32,6 +32,11 @@
 #   backend max-abs 1e-4 / cosine 1-1e-6, batch-vs-solo invariance 1e-5.
 #
 # * clippy mirrors the check matrix with -D warnings (both feature sets).
+#
+# * macOS leg pinned to macos-15 (Xcode 16): Xcode 26's libc++ forbids
+#   specializing std type traits (_LIBCPP_NO_SPECIALIZATIONS), which hard-
+#   errors in libtorch 2.4's c10/util/strong_type.h under torch-sys 0.17.
+#   Revisit when tch/the rust-bert fork move past libtorch 2.4.
 
 name: CI
 
@@ -78,7 +83,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # macos-15, not macos-latest: see the Xcode 26 note in the header.
+        os: [ubuntu-latest, macos-15]
         backend: [torch, onnx]
     runs-on: ${{ matrix.os }}
     steps:
