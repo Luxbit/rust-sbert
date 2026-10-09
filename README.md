@@ -94,11 +94,12 @@ let output = sbert_model.forward(&texts, 64).unwrap(); // batch size, or None
 `SentenceTransformer<T>` struct — both names refer to the same type.
 
 The `device` argument (`None` = `Device::cuda_if_available()`) is the
-re-exported `rust_bert::Device`: under `torch` it maps to `tch::Device`
-(`Cuda(i)` / `Cpu`; MPS and Vulkan map to CPU — request them via tch at the
-call site if needed), under `onnx` it selects the execution provider
+re-exported `rust_bert::Device`: under `torch` it converts to `tch::Device`
+losslessly (`Cuda(i)` / `Cpu` / `Mps` / `Vulkan` — MPS drives the libtorch
+backend on Apple Silicon GPUs), under `onnx` it selects the execution provider
 (`Cuda(i)` → CUDA EP, which additionally requires rust-bert's `cuda`
-feature downstream; `Cpu` → CPU EP; there is no Metal provider).
+feature downstream; `Cpu` → CPU EP; `Mps`/`Vulkan` do not exist in onnx-only
+builds and resolve to CPU providers).
 
 `examples/encode_torch.rs` and `examples/encode_onnx.rs` are twin minimal
 programs — run both on the same checkpoint to see the backends agree to
