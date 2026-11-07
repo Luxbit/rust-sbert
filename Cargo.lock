@@ -1473,7 +1473,7 @@ dependencies = [
 [[package]]
 name = "rust-bert"
 version = "0.25.0"
-source = "git+https://github.com/Luxbit/rust-bert?rev=8b47c75025a4ab373e8ab9b4dd32a6cddf42a682#8b47c75025a4ab373e8ab9b4dd32a6cddf42a682"
+source = "git+https://github.com/Luxbit/rust-bert?rev=742e3643cd10156e3ea2a9167837a17034a06911#742e3643cd10156e3ea2a9167837a17034a06911"
 dependencies = [
  "half 2.4.0",
  "ndarray 0.17.2",

@@ -37,7 +37,7 @@ rayon = "1.5"
 # keys git sources by URL+query, so a floating `branch` here would duplicate
 # rust-bert next to any rev-pinned downstream (linkmesh doc_processor pins
 # the byte-identical string). Bump deliberately, in lockstep downstream.
-rust-bert = { git = "https://github.com/Luxbit/rust-bert", rev = "8b47c75025a4ab373e8ab9b4dd32a6cddf42a682", optional = true, default-features = false }
+rust-bert = { git = "https://github.com/Luxbit/rust-bert", rev = "742e3643cd10156e3ea2a9167837a17034a06911", optional = true, default-features = false }
 rust_tokenizers = "7.0"
 serde = "1.0"
 serde_json = "1.0"
